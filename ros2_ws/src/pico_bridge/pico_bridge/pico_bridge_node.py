@@ -10,7 +10,8 @@ PICO ROS2 Bridge Node
 支持设备:
 - PICO 头显 (HMD): 头部 6DoF
 - PICO 手柄: 左/右手柄 6DoF + 按键 (trigger, grip, buttons)
-- PICO Motion Tracker: 最多支持全身24关节追踪
+- PICO Motion Tracker: 独立追踪器 (通过序列号索引)
+- PICO Body Tracking: 全身 24 关节追踪 (需要至少 2 个 Swift 设备)
 
 ROS2 话题输出:
 - /pico/hmd/pose                  : 头显位姿
@@ -23,19 +24,52 @@ ROS2 话题输出:
 - /pico/tracker/left_elbow        : 左肘追踪器
 - /pico/tracker/right_elbow       : 右肘追踪器
 
-xrobotoolkit_sdk 官方 API:
-- get_headset_pose()              : 获取头显位姿
-- get_left_controller_pose()      : 获取左手柄位姿
-- get_right_controller_pose()     : 获取右手柄位姿
-- get_left_controller_trigger()   : 获取左手柄扳机
-- get_right_controller_trigger()  : 获取右手柄扳机
-- get_left_controller_grip()      : 获取左手柄握把
-- get_right_controller_grip()     : 获取右手柄握把
-- get_left_controller_button_a()  : 获取左手柄A键 (实际是X键)
-- get_right_controller_button_a() : 获取右手柄A键
-- get_left_hand_tracking_state()  : 获取左手追踪状态
-- get_right_hand_tracking_state() : 获取右手追踪状态
-- get_body_tracking_state()       : 获取全身追踪状态 (24关节)
+xrobotoolkit_sdk 官方 API (参考 examples/):
+初始化:
+- xrt.init()                      : 初始化 SDK
+- xrt.close()                     : 关闭 SDK
+
+位姿获取 (返回 [x, y, z, qx, qy, qz, qw]):
+- xrt.get_headset_pose()          : 获取头显位姿
+- xrt.get_left_controller_pose()  : 获取左手柄位姿
+- xrt.get_right_controller_pose() : 获取右手柄位姿
+
+手柄输入:
+- xrt.get_left_trigger()          : 左扳机 (float 0-1)
+- xrt.get_right_trigger()         : 右扳机 (float 0-1)
+- xrt.get_left_grip()             : 左握把 (float 0-1)
+- xrt.get_right_grip()            : 右握把 (float 0-1)
+- xrt.get_A_button()              : A 键状态
+- xrt.get_B_button()              : B 键状态
+- xrt.get_X_button()              : X 键状态
+- xrt.get_Y_button()              : Y 键状态
+- xrt.get_left_axis()             : 左摇杆 [x, y]
+- xrt.get_right_axis()            : 右摇杆 [x, y]
+
+Motion Tracker (独立追踪器):
+- xrt.num_motion_data_available() : 可用追踪器数量
+- xrt.get_motion_tracker_pose()   : 追踪器位姿 (按索引)
+- xrt.get_motion_tracker_velocity(): 追踪器速度
+- xrt.get_motion_tracker_acceleration(): 追踪器加速度
+- xrt.get_motion_tracker_serial_numbers(): 追踪器序列号
+- xrt.get_motion_timestamp_ns()   : 追踪器时间戳 (纳秒)
+
+Body Tracking (24 关节全身追踪):
+- xrt.is_body_data_available()    : 是否有身体数据
+- xrt.get_body_joints_pose()      : 24 关节位姿 [x,y,z,qx,qy,qz,qw]
+- xrt.get_body_joints_velocity()  : 24 关节速度
+- xrt.get_body_joints_acceleration(): 24 关节加速度
+- xrt.get_body_joints_timestamp() : 各关节 IMU 时间戳
+- xrt.get_body_timestamp_ns()     : 身体数据时间戳
+
+手部追踪:
+- xrt.get_left_hand_tracking_state(): 左手 27x7 数组
+- xrt.get_right_hand_tracking_state(): 右手 27x7 数组
+- xrt.get_left_hand_is_active()   : 左手是否激活
+- xrt.get_right_hand_is_active()  : 右手是否激活
+
+时间戳:
+- xrt.get_time_stamp_ns()         : 当前时间戳 (纳秒)
 """
 
 import rclpy
@@ -185,9 +219,16 @@ class PicoBridgeNode(Node):
 
         # ===== 启动 SDK =====
         if HAS_XROBOTOOLKIT and not self.simulation_mode:
-            self.sdk_initialized = True
-            self.get_logger().info('xrobotoolkit_sdk 已加载')
-            self.get_logger().info('确保 PC-Service 正在运行: /opt/apps/roboticsservice/runService.sh')
+            try:
+                # 初始化 SDK (官方 API: xrt.init())
+                xrobotoolkit_sdk.init()
+                self.sdk_initialized = True
+                self.get_logger().info('xrobotoolkit_sdk 已初始化')
+                self.get_logger().info('确保 PC-Service 正在运行: /opt/apps/roboticsservice/runService.sh')
+            except Exception as e:
+                self.get_logger().error(f'xrobotoolkit_sdk 初始化失败: {e}')
+                self.get_logger().warn('切换到模拟模式')
+                self.simulation_mode = True
         elif self.simulation_mode:
             self.get_logger().info('模拟模式已启用')
         else:
@@ -232,11 +273,14 @@ class PicoBridgeNode(Node):
         """
         发布真实 PICO 数据
 
-        使用 xrobotoolkit_sdk 官方 API:
+        使用 xrobotoolkit_sdk 官方 API (参考 examples/):
         - get_headset_pose() -> [x, y, z, qx, qy, qz, qw]
         - get_left_controller_pose() -> [x, y, z, qx, qy, qz, qw]
         - get_right_controller_pose() -> [x, y, z, qx, qy, qz, qw]
-        - get_body_tracking_state() -> 24关节数据
+        - num_motion_data_available() -> int (可用 Motion Tracker 数量)
+        - get_motion_tracker_pose() -> 各追踪器位姿数组
+        - is_body_data_available() -> bool
+        - get_body_joints_pose() -> 24x7 数组 (24 关节，每个 7 个值)
         """
         if not self.sdk_initialized:
             return
@@ -279,61 +323,105 @@ class PicoBridgeNode(Node):
                     if self.enable_tf:
                         self._broadcast_tf(header, 'controller_right', pose_msg.pose)
 
-            # ===== Motion Tracker (从全身追踪提取) =====
-            if self.enable_trackers or self.enable_body_tracking:
-                body_state = xrobotoolkit_sdk.get_body_tracking_state()
-                if body_state is not None:
-                    # 发布全身追踪
-                    if self.enable_body_tracking:
-                        body_msg = self._create_body_poses(header, body_state)
-                        self.publishers['body'].publish(body_msg)
+            # ===== Motion Tracker (独立追踪器) =====
+            # 使用 num_motion_data_available() 和 get_motion_tracker_pose()
+            if self.enable_trackers:
+                self._publish_motion_tracker_data(header)
 
-                    # 提取特定关节作为 Tracker
-                    if self.enable_trackers:
-                        self._publish_tracker_from_body(header, body_state)
+            # ===== Body Tracking (24 关节全身追踪) =====
+            # 需要至少 2 个 Swift 设备
+            if self.enable_body_tracking:
+                if xrobotoolkit_sdk.is_body_data_available():
+                    body_poses = xrobotoolkit_sdk.get_body_joints_pose()
+                    if body_poses is not None:
+                        body_msg = self._create_body_poses(header, body_poses)
+                        self.publishers['body'].publish(body_msg)
 
         except Exception as e:
             self.get_logger().warn(f'获取追踪数据失败: {e}')
+
+    def _publish_motion_tracker_data(self, header: Header):
+        """
+        发布 Motion Tracker 数据
+
+        官方 API (参考 examples/example_motion_tracker.py):
+        - xrt.num_motion_data_available() -> int
+        - xrt.get_motion_tracker_pose() -> 位姿数组
+        - xrt.get_motion_tracker_velocity() -> 速度数组
+        - xrt.get_motion_tracker_serial_numbers() -> 序列号列表
+        """
+        try:
+            num_trackers = xrobotoolkit_sdk.num_motion_data_available()
+            if num_trackers == 0:
+                return
+
+            # 获取所有追踪器位姿
+            tracker_poses = xrobotoolkit_sdk.get_motion_tracker_pose()
+            if tracker_poses is None:
+                return
+
+            # 发布每个追踪器
+            for i in range(min(num_trackers, self.num_trackers)):
+                role = self.tracker_roles.get(i, f'tracker_{i}')
+
+                # tracker_poses 是 Nx7 数组，每行 [x, y, z, qx, qy, qz, qw]
+                if i < len(tracker_poses):
+                    pose_data = tracker_poses[i]
+                    if len(pose_data) >= 7:
+                        pose_msg = self._create_pose_from_array(header, role, pose_data)
+                        self.publishers[f'tracker_{i}'].publish(pose_msg)
+
+                        if self.enable_tf:
+                            self._broadcast_tf(header, role, pose_msg.pose)
+
+        except Exception as e:
+            self.get_logger().debug(f'Motion Tracker 数据获取失败: {e}')
 
     def _create_controller_joy(self, header: Header, side: str) -> Joy:
         """
         创建手柄 Joy 消息
 
-        使用 xrobotoolkit_sdk API:
-        - get_left/right_controller_trigger() -> float [0, 1]
-        - get_left/right_controller_grip() -> float [0, 1]
-        - get_left/right_controller_button_a() -> bool
-        - get_left/right_controller_axis_x/y() -> float [-1, 1]
+        使用 xrobotoolkit_sdk 官方 API (参考 examples/example.py):
+        - xrt.get_left_trigger() / get_right_trigger() -> float [0, 1]
+        - xrt.get_left_grip() / get_right_grip() -> float [0, 1]
+        - xrt.get_A_button() / get_B_button() -> bool (右手柄)
+        - xrt.get_X_button() / get_Y_button() -> bool (左手柄)
+        - xrt.get_left_axis() / get_right_axis() -> [x, y]
         """
         joy = Joy()
         joy.header = header
 
         try:
             if side == 'left':
-                trigger = xrobotoolkit_sdk.get_left_controller_trigger()
-                grip = xrobotoolkit_sdk.get_left_controller_grip()
-                button_a = xrobotoolkit_sdk.get_left_controller_button_a()
-                axis_x = xrobotoolkit_sdk.get_left_controller_axis_x()
-                axis_y = xrobotoolkit_sdk.get_left_controller_axis_y()
+                trigger = xrobotoolkit_sdk.get_left_trigger()
+                grip = xrobotoolkit_sdk.get_left_grip()
+                axis = xrobotoolkit_sdk.get_left_axis()
+                # 左手柄: X, Y 按键
+                button_primary = xrobotoolkit_sdk.get_X_button()
+                button_secondary = xrobotoolkit_sdk.get_Y_button()
             else:
-                trigger = xrobotoolkit_sdk.get_right_controller_trigger()
-                grip = xrobotoolkit_sdk.get_right_controller_grip()
-                button_a = xrobotoolkit_sdk.get_right_controller_button_a()
-                axis_x = xrobotoolkit_sdk.get_right_controller_axis_x()
-                axis_y = xrobotoolkit_sdk.get_right_controller_axis_y()
+                trigger = xrobotoolkit_sdk.get_right_trigger()
+                grip = xrobotoolkit_sdk.get_right_grip()
+                axis = xrobotoolkit_sdk.get_right_axis()
+                # 右手柄: A, B 按键
+                button_primary = xrobotoolkit_sdk.get_A_button()
+                button_secondary = xrobotoolkit_sdk.get_B_button()
 
             # axes: [axis_x, axis_y, trigger, grip]
+            axis_x = axis[0] if axis and len(axis) > 0 else 0.0
+            axis_y = axis[1] if axis and len(axis) > 1 else 0.0
             joy.axes = [
-                float(axis_x) if axis_x else 0.0,
-                float(axis_y) if axis_y else 0.0,
+                float(axis_x),
+                float(axis_y),
                 float(trigger) if trigger else 0.0,
                 float(grip) if grip else 0.0,
             ]
 
-            # buttons: [a/x, b/y, menu, thumbstick_click, trigger_click, grip_click]
+            # buttons: [primary (A/X), secondary (B/Y), menu, thumbstick_click, trigger_click, grip_click]
             joy.buttons = [
-                int(button_a) if button_a else 0,
-                0, 0, 0, 0, 0
+                int(button_primary) if button_primary else 0,
+                int(button_secondary) if button_secondary else 0,
+                0, 0, 0, 0
             ]
 
         except Exception:
@@ -342,60 +430,48 @@ class PicoBridgeNode(Node):
 
         return joy
 
-    def _create_body_poses(self, header: Header, body_state) -> PoseArray:
-        """创建全身 24 关节 PoseArray"""
+    def _create_body_poses(self, header: Header, body_joints_pose) -> PoseArray:
+        """
+        创建全身 24 关节 PoseArray
+
+        body_joints_pose: 24x7 数组
+        每行格式: [x, y, z, qx, qy, qz, qw]
+
+        关节顺序 (SMPL 24 关节):
+        0: pelvis, 1: left_hip, 2: right_hip, 3: spine1,
+        4: left_knee, 5: right_knee, 6: spine2, 7: left_ankle,
+        8: right_ankle, 9: spine3, 10: left_foot, 11: right_foot,
+        12: neck, 13: left_collar, 14: right_collar, 15: head,
+        16: left_shoulder, 17: right_shoulder, 18: left_elbow, 19: right_elbow,
+        20: left_wrist, 21: right_wrist, 22: left_hand, 23: right_hand
+        """
+        from geometry_msgs.msg import Pose
         msg = PoseArray()
         msg.header = header
 
-        # body_state 包含 24 关节的位姿、速度、加速度
-        # 格式需要根据实际 SDK 返回值调整
-        for i, joint_name in enumerate(self.BODY_JOINTS):
-            pose = self._extract_joint_pose(body_state, i)
-            msg.poses.append(pose)
+        try:
+            # body_joints_pose 应该是 24x7 numpy 数组
+            for i in range(min(24, len(body_joints_pose))):
+                pose = Pose()
+                joint_data = body_joints_pose[i]
+
+                if len(joint_data) >= 7:
+                    pose.position.x = float(joint_data[0])
+                    pose.position.y = float(joint_data[1])
+                    pose.position.z = float(joint_data[2])
+                    pose.orientation.x = float(joint_data[3])
+                    pose.orientation.y = float(joint_data[4])
+                    pose.orientation.z = float(joint_data[5])
+                    pose.orientation.w = float(joint_data[6])
+                else:
+                    pose.orientation.w = 1.0
+
+                msg.poses.append(pose)
+
+        except Exception as e:
+            self.get_logger().debug(f'Body tracking 数据解析失败: {e}')
 
         return msg
-
-    def _extract_joint_pose(self, body_state, joint_index: int):
-        """从全身追踪状态提取单个关节位姿"""
-        from geometry_msgs.msg import Pose
-        pose = Pose()
-
-        try:
-            # 假设 body_state 是包含所有关节数据的数组/结构
-            # 实际格式需要根据 SDK 文档调整
-            if hasattr(body_state, 'poses') and len(body_state.poses) > joint_index:
-                joint_data = body_state.poses[joint_index]
-                pose.position.x = float(joint_data[0])
-                pose.position.y = float(joint_data[1])
-                pose.position.z = float(joint_data[2])
-                pose.orientation.x = float(joint_data[3])
-                pose.orientation.y = float(joint_data[4])
-                pose.orientation.z = float(joint_data[5])
-                pose.orientation.w = float(joint_data[6])
-            else:
-                pose.orientation.w = 1.0
-        except Exception:
-            pose.orientation.w = 1.0
-
-        return pose
-
-    def _publish_tracker_from_body(self, header: Header, body_state):
-        """从全身追踪数据提取 Tracker 位姿"""
-        for i in range(self.num_trackers):
-            role = self.tracker_roles.get(i)
-            if role and role in self.TRACKER_TO_JOINT:
-                joint_index = self.TRACKER_TO_JOINT[role]
-                pose = self._extract_joint_pose(body_state, joint_index)
-
-                pose_msg = PoseStamped()
-                pose_msg.header = header
-                pose_msg.header.frame_id = role
-                pose_msg.pose = pose
-
-                self.publishers[f'tracker_{i}'].publish(pose_msg)
-
-                if self.enable_tf:
-                    self._broadcast_tf(header, role, pose)
 
     def _create_pose_from_array(self, header: Header, frame_id: str, pose_array) -> PoseStamped:
         """
@@ -500,6 +576,18 @@ class PicoBridgeNode(Node):
 
                 if self.enable_tf:
                     self._broadcast_tf(header, role, pose.pose)
+
+    def destroy_node(self):
+        """清理资源"""
+        # 关闭 SDK (官方 API: xrt.close())
+        if self.sdk_initialized and HAS_XROBOTOOLKIT:
+            try:
+                xrobotoolkit_sdk.close()
+                self.get_logger().info('xrobotoolkit_sdk 已关闭')
+            except Exception as e:
+                self.get_logger().warn(f'关闭 SDK 失败: {e}')
+
+        super().destroy_node()
 
 
 def main(args=None):

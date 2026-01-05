@@ -126,34 +126,97 @@ FROM osrf/ros:humble-desktop
 | 安装方式 | 从源码构建 (需要先编译 PXREARobotSDK) |
 | Python 包名 | `xrobotoolkit_sdk` |
 
-## 快速开始
+## xrobotoolkit_sdk API 参考
 
-### 0. 初始化 Git 仓库 (首次使用)
+官方 API 文档，参考 [examples/](https://github.com/XR-Robotics/XRoboToolkit-PC-Service-Pybind/tree/main/examples)。
 
-```bash
-cd pico-ros2-bridge
+### 初始化与清理
 
-# 初始化 Git 仓库
-git init
+```python
+import xrobotoolkit_sdk as xrt
 
-# 添加所有文件
-git add .
-
-# 首次提交
-git commit -m "Initial commit: PICO ROS2 Bridge Docker module
-
-- Dockerfile: 基于 osrf/ros:humble-desktop，集成 XRoboToolkit PC-Service
-- xrobotoolkit_sdk: Python SDK 从源码构建
-- pico_bridge_node: ROS2 节点，发布 HMD/Controller/Tracker 位姿
-- docker-compose: 支持正常模式和模拟模式"
-
-# 创建 GitHub 远程仓库 (需要先在 GitHub 创建空仓库)
-git remote add origin https://github.com/YOUR_USERNAME/pico-ros2-bridge.git
-
-# 推送到远程
-git branch -M main
-git push -u origin main
+xrt.init()   # 初始化 SDK 连接
+xrt.close()  # 关闭 SDK 连接
 ```
+
+### 位姿获取 (返回 [x, y, z, qx, qy, qz, qw])
+
+```python
+xrt.get_headset_pose()           # 头显位姿
+xrt.get_left_controller_pose()   # 左手柄位姿
+xrt.get_right_controller_pose()  # 右手柄位姿
+```
+
+### 手柄输入
+
+```python
+# 模拟输入 (float 0-1)
+xrt.get_left_trigger()   # 左扳机
+xrt.get_right_trigger()  # 右扳机
+xrt.get_left_grip()      # 左握把
+xrt.get_right_grip()     # 右握把
+
+# 摇杆 (返回 [x, y])
+xrt.get_left_axis()      # 左摇杆
+xrt.get_right_axis()     # 右摇杆
+
+# 按键状态 (bool)
+xrt.get_A_button()       # A 键 (右手柄)
+xrt.get_B_button()       # B 键 (右手柄)
+xrt.get_X_button()       # X 键 (左手柄)
+xrt.get_Y_button()       # Y 键 (左手柄)
+```
+
+### Motion Tracker (独立追踪器)
+
+```python
+xrt.num_motion_data_available()        # 可用追踪器数量
+xrt.get_motion_tracker_pose()          # 追踪器位姿数组 (Nx7)
+xrt.get_motion_tracker_velocity()      # 追踪器速度
+xrt.get_motion_tracker_acceleration()  # 追踪器加速度
+xrt.get_motion_tracker_serial_numbers() # 追踪器序列号
+xrt.get_motion_timestamp_ns()          # 时间戳 (纳秒)
+```
+
+### Body Tracking (24 关节全身追踪)
+
+需要至少 2 个 Swift 设备进行校准。
+
+```python
+xrt.is_body_data_available()           # 是否有身体数据
+xrt.get_body_joints_pose()             # 24 关节位姿 (24x7 数组)
+xrt.get_body_joints_velocity()         # 24 关节速度
+xrt.get_body_joints_acceleration()     # 24 关节加速度
+xrt.get_body_joints_timestamp()        # 各关节 IMU 时间戳
+xrt.get_body_timestamp_ns()            # 身体数据时间戳
+```
+
+**24 关节 SMPL 骨骼顺序:**
+```
+ 0: pelvis       1: left_hip      2: right_hip     3: spine1
+ 4: left_knee    5: right_knee    6: spine2        7: left_ankle
+ 8: right_ankle  9: spine3       10: left_foot    11: right_foot
+12: neck        13: left_collar  14: right_collar 15: head
+16: left_shoulder 17: right_shoulder 18: left_elbow 19: right_elbow
+20: left_wrist  21: right_wrist  22: left_hand    23: right_hand
+```
+
+### 手部追踪
+
+```python
+xrt.get_left_hand_tracking_state()     # 左手 27x7 数组
+xrt.get_right_hand_tracking_state()    # 右手 27x7 数组
+xrt.get_left_hand_is_active()          # 左手是否激活
+xrt.get_right_hand_is_active()         # 右手是否激活
+```
+
+### 时间戳
+
+```python
+xrt.get_time_stamp_ns()                # 当前时间戳 (纳秒)
+```
+
+## 快速开始
 
 ### 1. 构建 Docker 镜像
 

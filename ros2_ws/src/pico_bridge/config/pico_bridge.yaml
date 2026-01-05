@@ -1,0 +1,23 @@
+# PICO Bridge 配置文件
+
+pico_bridge:
+  ros__parameters:
+    # 发布频率 (Hz)
+    publish_rate: 200.0
+
+    # 父坐标系
+    frame_id: "pico_world"
+
+    # 是否发布 TF
+    enable_tf: true
+
+    # 设备启用
+    enable_hmd: true
+    enable_controllers: true
+    enable_trackers: true
+
+    # 追踪器数量 (0-4)
+    num_trackers: 4
+
+    # 模拟模式 (无 PICO 设备时测试用)
+    simulation_mode: false

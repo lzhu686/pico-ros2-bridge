@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  pico-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pico-ros2-bridge
+
+    # 使用 host 网络模式以便 ROS2 DDS 通信
+    network_mode: host
+
+    # 环境变量
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      # 时区
+      - TZ=Asia/Shanghai
+
+    # 挂载卷
+    volumes:
+      # 源码挂载 (开发模式，可实时修改)
+      - ./ros2_ws/src/pico_bridge:/ros2_ws/src/pico_bridge:ro
+      # 日志目录
+      - ./logs:/ros2_ws/logs
+
+    # 重启策略
+    restart: unless-stopped
+
+    # 默认命令
+    command: ros2 launch pico_bridge pico_bridge.launch.py
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "ros2", "topic", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # 模拟模式服务 (用于测试)
+  pico-bridge-sim:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pico-ros2-bridge-sim
+    network_mode: host
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    command: ros2 launch pico_bridge pico_bridge.launch.py simulation_mode:=true
+    profiles:
+      - simulation

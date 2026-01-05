@@ -64,10 +64,14 @@ RUN apt-get update && apt-get install -y \
 #   - 启动服务: /opt/apps/roboticsservice/runService.sh
 #   - 或双击桌面图标 xrobotoolkit-pc-service
 #
+# 注意: deb 包的 post-install 脚本需要 xdg-utils 来安装桌面图标
+#
 ARG XROBOTOOLKIT_VERSION=1.0.0
+RUN apt-get update && apt-get install -y xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
 RUN wget -q https://github.com/XR-Robotics/XRoboToolkit-PC-Service/releases/download/v${XROBOTOOLKIT_VERSION}/XRoboToolkit_PC_Service_${XROBOTOOLKIT_VERSION}_ubuntu_22.04_amd64.deb \
     -O /tmp/xrobotoolkit-pc-service.deb \
-    && dpkg -i /tmp/xrobotoolkit-pc-service.deb || apt-get install -f -y \
+    && dpkg -i /tmp/xrobotoolkit-pc-service.deb || apt-get update && apt-get install -f -y \
     && rm /tmp/xrobotoolkit-pc-service.deb
 
 # ===== XRoboToolkit Python SDK (xrobotoolkit_sdk) =====
@@ -132,6 +136,9 @@ WORKDIR /ros2_ws
 # 复制 ROS2 包
 COPY ros2_ws/src /ros2_ws/src
 
+# 转换所有 Python 和 launch 文件的 Windows CRLF 为 Unix LF
+RUN find /ros2_ws/src -type f \( -name "*.py" -o -name "*.launch.py" \) -exec sed -i 's/\r$//' {} \;
+
 # 安装 ROS2 依赖
 RUN apt-get update \
     && rosdep update \
@@ -142,15 +149,23 @@ RUN apt-get update \
 RUN . /opt/ros/humble/setup.sh \
     && colcon build --symlink-install
 
+# 再次转换 install 目录下的文件 (colcon 可能复制而非符号链接某些文件)
+RUN find /ros2_ws/install -type f \( -name "*.py" -o -name "*.launch.py" \) -exec sed -i 's/\r$//' {} \;
+
 # ===== 入口脚本 =====
 COPY scripts/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# 转换 Windows CRLF 为 Unix LF，并设置执行权限
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # ===== 环境配置 =====
 ENV ROS_DOMAIN_ID=0
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 # 确保能找到 libPXREARobotSDK.so
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+
+# 配置 bashrc，进入容器时自动加载 ROS2 环境
+RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc \
+    && echo "source /ros2_ws/install/setup.bash" >> /root/.bashrc
 
 # 暴露端口
 # - 8800: XRoboToolkit gRPC (PICO 设备连接)

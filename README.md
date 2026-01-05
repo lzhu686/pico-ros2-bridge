@@ -237,10 +237,32 @@ docker compose --profile simulation up pico-bridge-sim
 
 ### 3. PICO 端配置
 
-1. 在 PICO 头显上安装 **XRoboToolkit Client APK**
-2. 确保 PICO 与 PC 在**同一局域网**
-3. 打开 XRoboToolkit Client，输入 PC 的 IP 地址
-4. 点击连接，等待状态变为 "Connected"
+**前置条件:**
+- PICO 4 Ultra 头显
+- User OS > 5.12
+- 已开启开发者模式 ([开启方法](https://developer-global.pico-interactive.com/document/doc/enable-developer-mode))
+- 企业版权限 + VST 相机权限 (用于双目视频流)
+
+**安装 XRoboToolkit Client APK:**
+
+```bash
+# 下载 APK (v1.1.1)
+# https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases
+
+# 通过 ADB 安装
+adb install -g XRoboToolkit-PICO-1.1.1.apk
+```
+
+| 资源 | 链接 |
+|------|------|
+| APK 下载 | [Releases](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases) |
+| Unity 源码 | [XRoboToolkit-Unity-Client](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client) |
+| 其他版本 | 见 Releases 页面 |
+
+**连接步骤:**
+1. 确保 PICO 与 PC 在**同一局域网**
+2. 打开 XRoboToolkit Client，输入 PC 的 IP 地址
+3. 点击连接，等待状态变为 "Connected"
 
 ### 4. 验证数据
 

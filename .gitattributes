@@ -1,0 +1,24 @@
+# 强制所有 shell 脚本和 Python 文件使用 LF 行尾符
+*.sh text eol=lf
+*.py text eol=lf
+*.launch.py text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.xml text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.md text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+
+# Dockerfile 相关
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+
+# 二进制文件不转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary

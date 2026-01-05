@@ -177,22 +177,23 @@ class PicoBridgeNode(Node):
         )
 
         # ===== 发布者 =====
-        self.publishers = {}
+        # 注意: 不能使用 self.publishers，因为它是 ROS2 Node 的只读属性
+        self._pubs = {}
 
         # 头显
         if self.enable_hmd:
-            self.publishers['hmd'] = self.create_publisher(
+            self._pubs['hmd'] = self.create_publisher(
                 PoseStamped, '/pico/hmd/pose', qos)
 
         # 手柄
         if self.enable_controllers:
-            self.publishers['controller_left'] = self.create_publisher(
+            self._pubs['controller_left'] = self.create_publisher(
                 PoseStamped, '/pico/controller/left/pose', qos)
-            self.publishers['controller_right'] = self.create_publisher(
+            self._pubs['controller_right'] = self.create_publisher(
                 PoseStamped, '/pico/controller/right/pose', qos)
-            self.publishers['controller_left_joy'] = self.create_publisher(
+            self._pubs['controller_left_joy'] = self.create_publisher(
                 Joy, '/pico/controller/left/joy', qos)
-            self.publishers['controller_right_joy'] = self.create_publisher(
+            self._pubs['controller_right_joy'] = self.create_publisher(
                 Joy, '/pico/controller/right/joy', qos)
 
         # 追踪器 (使用语义化名称)
@@ -200,13 +201,13 @@ class PicoBridgeNode(Node):
             for i in range(self.num_trackers):
                 role = self.tracker_roles.get(i, f'tracker_{i}')
                 topic_name = f'/pico/tracker/{role}'
-                self.publishers[f'tracker_{i}'] = self.create_publisher(
+                self._pubs[f'tracker_{i}'] = self.create_publisher(
                     PoseStamped, topic_name, qos)
                 self.get_logger().info(f'Tracker #{i} → {topic_name}')
 
         # 全身追踪 (24关节)
         if self.enable_body_tracking:
-            self.publishers['body'] = self.create_publisher(
+            self._pubs['body'] = self.create_publisher(
                 PoseArray, '/pico/body/poses', qos)
 
         # ===== TF 广播器 =====
@@ -291,7 +292,7 @@ class PicoBridgeNode(Node):
                 hmd_pose = xrobotoolkit_sdk.get_headset_pose()
                 if hmd_pose is not None and len(hmd_pose) >= 7:
                     pose_msg = self._create_pose_from_array(header, 'hmd', hmd_pose)
-                    self.publishers['hmd'].publish(pose_msg)
+                    self._pubs['hmd'].publish(pose_msg)
                     if self.enable_tf:
                         self._broadcast_tf(header, 'hmd', pose_msg.pose)
 
@@ -301,11 +302,11 @@ class PicoBridgeNode(Node):
                 left_pose = xrobotoolkit_sdk.get_left_controller_pose()
                 if left_pose is not None and len(left_pose) >= 7:
                     pose_msg = self._create_pose_from_array(header, 'controller_left', left_pose)
-                    self.publishers['controller_left'].publish(pose_msg)
+                    self._pubs['controller_left'].publish(pose_msg)
 
                     # 按键状态
                     joy_msg = self._create_controller_joy(header, 'left')
-                    self.publishers['controller_left_joy'].publish(joy_msg)
+                    self._pubs['controller_left_joy'].publish(joy_msg)
 
                     if self.enable_tf:
                         self._broadcast_tf(header, 'controller_left', pose_msg.pose)
@@ -314,11 +315,11 @@ class PicoBridgeNode(Node):
                 right_pose = xrobotoolkit_sdk.get_right_controller_pose()
                 if right_pose is not None and len(right_pose) >= 7:
                     pose_msg = self._create_pose_from_array(header, 'controller_right', right_pose)
-                    self.publishers['controller_right'].publish(pose_msg)
+                    self._pubs['controller_right'].publish(pose_msg)
 
                     # 按键状态
                     joy_msg = self._create_controller_joy(header, 'right')
-                    self.publishers['controller_right_joy'].publish(joy_msg)
+                    self._pubs['controller_right_joy'].publish(joy_msg)
 
                     if self.enable_tf:
                         self._broadcast_tf(header, 'controller_right', pose_msg.pose)
@@ -335,7 +336,7 @@ class PicoBridgeNode(Node):
                     body_poses = xrobotoolkit_sdk.get_body_joints_pose()
                     if body_poses is not None:
                         body_msg = self._create_body_poses(header, body_poses)
-                        self.publishers['body'].publish(body_msg)
+                        self._pubs['body'].publish(body_msg)
 
         except Exception as e:
             self.get_logger().warn(f'获取追踪数据失败: {e}')
@@ -369,7 +370,7 @@ class PicoBridgeNode(Node):
                     pose_data = tracker_poses[i]
                     if len(pose_data) >= 7:
                         pose_msg = self._create_pose_from_array(header, role, pose_data)
-                        self.publishers[f'tracker_{i}'].publish(pose_msg)
+                        self._pubs[f'tracker_{i}'].publish(pose_msg)
 
                         if self.enable_tf:
                             self._broadcast_tf(header, role, pose_msg.pose)
@@ -519,7 +520,7 @@ class PicoBridgeNode(Node):
             pose.pose.position.y = 1.6
             pose.pose.position.z = 0.0
             pose.pose.orientation.w = 1.0
-            self.publishers['hmd'].publish(pose)
+            self._pubs['hmd'].publish(pose)
             if self.enable_tf:
                 self._broadcast_tf(header, 'hmd', pose.pose)
 
@@ -533,13 +534,13 @@ class PicoBridgeNode(Node):
                 pose.pose.position.y = 1.0
                 pose.pose.position.z = 0.3 + 0.05 * np.sin(t * 2)
                 pose.pose.orientation.w = 1.0
-                self.publishers[f'controller_{side}'].publish(pose)
+                self._pubs[f'controller_{side}'].publish(pose)
 
                 joy = Joy()
                 joy.header = header
                 joy.axes = [0.0] * 4
                 joy.buttons = [0] * 6
-                self.publishers[f'controller_{side}_joy'].publish(joy)
+                self._pubs[f'controller_{side}_joy'].publish(joy)
 
                 if self.enable_tf:
                     self._broadcast_tf(header, f'controller_{side}', pose.pose)
@@ -572,7 +573,7 @@ class PicoBridgeNode(Node):
                     pose.pose.position.y = 1.0
 
                 pose.pose.orientation.w = 1.0
-                self.publishers[f'tracker_{i}'].publish(pose)
+                self._pubs[f'tracker_{i}'].publish(pose)
 
                 if self.enable_tf:
                     self._broadcast_tf(header, role, pose.pose)

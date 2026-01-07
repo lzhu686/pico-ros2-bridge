@@ -218,24 +218,44 @@ xrt.get_time_stamp_ns()                # 当前时间戳 (纳秒)
 
 ## 快速开始
 
-### 1. 构建 Docker 镜像
+### 方式一：本地构建镜像（推荐）
 
 ```bash
 cd pico-ros2-bridge
 docker compose build
+
+# Linux 用户 (默认)
+docker compose up -d
+
+# Windows / Mac 用户 (Docker Desktop)
+docker compose --profile windows up -d
 ```
 
-### 2. 启动服务
+| 平台 | 命令 | 网络模式 | 说明 |
+|------|------|----------|------|
+| **Linux** | `docker compose up -d` | host | 默认配置，最佳性能 |
+| Windows/Mac | `docker compose --profile windows up -d` | 端口映射 | Docker Desktop 需要端口映射 |
+
+### 查看话题数据
 
 ```bash
-# 正常模式 (需要 PICO 设备连接)
-docker compose up
+# 列出所有 PICO 话题 (Linux)
+docker exec pico-ros2-bridge ros2 topic list | grep pico
 
-# 模拟模式 (无 PICO 设备，用于测试 ROS2 话题)
-docker compose --profile simulation up pico-bridge-sim
+# 列出所有 PICO 话题 (Windows/Mac)
+docker exec pico-ros2-bridge-win ros2 topic list | grep pico
+
+# 查看头显位姿
+docker compose exec pico-bridge bash -c "source /opt/ros/humble/setup.bash && ros2 topic echo /pico/hmd/pose"
+
+# 查看左腕追踪器
+docker compose exec pico-bridge bash -c "source /opt/ros/humble/setup.bash && ros2 topic echo /pico/tracker/left_wrist"
+
+# 查看话题频率
+docker compose exec pico-bridge bash -c "source /opt/ros/humble/setup.bash && ros2 topic hz /pico/tracker/left_wrist"
 ```
 
-### 3. PICO 端配置
+### PICO 端配置
 
 **前置条件:**
 - PICO 4 Ultra 头显
@@ -246,42 +266,23 @@ docker compose --profile simulation up pico-bridge-sim
 **安装 XRoboToolkit Client APK:**
 
 ```bash
-# 下载 APK (v1.1.1)
-# https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases
+# 方式一：使用本仓库提供的 APK（推荐）
+adb install -g apk/XRoboToolkit-PICO-1.1.1.apk
 
-# 通过 ADB 安装
-adb install -g XRoboToolkit-PICO-1.1.1.apk
+# 方式二：从 GitHub 下载最新版本
+# https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases
 ```
 
-| 资源 | 链接 |
+| 资源 | 说明 |
 |------|------|
-| APK 下载 | [Releases](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases) |
+| 本仓库 APK | [apk/XRoboToolkit-PICO-1.1.1.apk](apk/) |
+| GitHub Releases | [XRoboToolkit-Unity-Client](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases) |
 | Unity 源码 | [XRoboToolkit-Unity-Client](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client) |
-| 其他版本 | 见 Releases 页面 |
 
 **连接步骤:**
 1. 确保 PICO 与 PC 在**同一局域网**
 2. 打开 XRoboToolkit Client，输入 PC 的 IP 地址
 3. 点击连接，等待状态变为 "Connected"
-
-### 4. 验证数据
-
-```bash
-# 进入容器
-docker compose exec pico-bridge bash
-
-# 查看所有话题
-ros2 topic list
-
-# 查看头显数据
-ros2 topic echo /pico/hmd/pose
-
-# 查看左腕追踪器
-ros2 topic echo /pico/tracker/left_wrist
-
-# 查看话题频率
-ros2 topic hz /pico/tracker/left_wrist
-```
 
 ## 配置参数
 
@@ -319,6 +320,9 @@ pico-ros2-bridge/
 ├── docker-compose.yml         # Docker Compose 配置
 ├── README.md                  # 本文档
 ├── .gitignore
+├── .gitattributes             # 跨平台行尾配置
+├── apk/                       # PICO 客户端 APK
+│   └── XRoboToolkit-PICO-1.1.1.apk
 ├── scripts/
 │   └── entrypoint.sh          # 容器入口脚本
 ├── logs/                      # 运行日志
@@ -381,13 +385,6 @@ self.left_wrist_sub = self.create_subscription(
 1. 检查 XRoboToolkit Client 是否显示 "Connected"
 2. 使用模拟模式测试 ROS2 话题是否正常
 3. 确认追踪器已在 PICO 系统中正确配对
-
-### Docker 构建失败
-
-1. 检查网络连接 (需要下载 GitHub 资源)
-2. 如果 deb 下载失败，手动下载后放入项目目录，修改 Dockerfile 使用 `COPY`
-
-## 参考资源
 
 ### XRoboToolkit 官方
 

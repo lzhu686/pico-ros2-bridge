@@ -218,21 +218,64 @@ xrt.get_time_stamp_ns()                # 当前时间戳 (纳秒)
 
 ## 快速开始
 
-### 1. 构建 Docker 镜像
+### 方式一：本地构建镜像（推荐）
 
 ```bash
 cd pico-ros2-bridge
 docker compose build
+
+# Linux 用户 (默认)
+docker compose up -d
+
+# Windows / Mac 用户 (Docker Desktop)
+docker compose --profile windows up -d
 ```
 
-### 2. 启动服务
+| 平台 | 命令 | 网络模式 | 说明 |
+|------|------|----------|------|
+| **Linux** | `docker compose up -d` | host | 默认配置，最佳性能 |
+| Windows/Mac | `docker compose --profile windows up -d` | 端口映射 | Docker Desktop 需要端口映射 |
+
+### 方式二：从阿里云拉取镜像
 
 ```bash
-# 正常模式 (需要 PICO 设备连接)
-docker compose up
+# 1. 登录阿里云镜像仓库
+docker login --username=盾剑任平生 crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com
 
-# 模拟模式 (无 PICO 设备，用于测试 ROS2 话题)
-docker compose --profile simulation up pico-bridge-sim
+# 2. 拉取镜像
+docker pull crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge:latest
+
+# 3. 运行容器 (Linux - 推荐)
+docker run -d --network host --name pico-ros2-bridge \
+    -e ROS_DOMAIN_ID=0 \
+    -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
+    crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge:latest
+
+# 3. 运行容器 (Windows/Mac) - 使用端口映射
+docker run -d -p 63901:63901 -p 60061:60061 -p 7400-7410:7400-7410/udp \
+    --name pico-ros2-bridge \
+    -e ROS_DOMAIN_ID=0 \
+    -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
+    crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge:latest
+```
+
+### 2. 查看话题数据
+
+```bash
+# 列出所有 PICO 话题 (Linux)
+docker exec pico-ros2-bridge ros2 topic list | grep pico
+
+# 列出所有 PICO 话题 (Windows/Mac)
+docker exec pico-ros2-bridge-win ros2 topic list | grep pico
+
+# 查看头显位姿
+docker compose exec pico-bridge bash -c "source /opt/ros/humble/setup.bash && ros2 topic echo /pico/hmd/pose"
+
+# 查看左腕追踪器
+docker compose exec pico-bridge bash -c "source /opt/ros/humble/setup.bash && ros2 topic echo /pico/tracker/left_wrist"
+
+# 查看话题频率
+docker compose exec pico-bridge bash -c "source /opt/ros/humble/setup.bash && ros2 topic hz /pico/tracker/left_wrist"
 ```
 
 ### 3. PICO 端配置
@@ -246,42 +289,23 @@ docker compose --profile simulation up pico-bridge-sim
 **安装 XRoboToolkit Client APK:**
 
 ```bash
-# 下载 APK (v1.1.1)
-# https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases
+# 方式一：使用本仓库提供的 APK（推荐）
+adb install -g apk/XRoboToolkit-PICO-1.1.1.apk
 
-# 通过 ADB 安装
-adb install -g XRoboToolkit-PICO-1.1.1.apk
+# 方式二：从 GitHub 下载最新版本
+# https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases
 ```
 
-| 资源 | 链接 |
+| 资源 | 说明 |
 |------|------|
-| APK 下载 | [Releases](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases) |
+| 本仓库 APK | [apk/XRoboToolkit-PICO-1.1.1.apk](apk/) |
+| GitHub Releases | [XRoboToolkit-Unity-Client](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases) |
 | Unity 源码 | [XRoboToolkit-Unity-Client](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client) |
-| 其他版本 | 见 Releases 页面 |
 
 **连接步骤:**
 1. 确保 PICO 与 PC 在**同一局域网**
 2. 打开 XRoboToolkit Client，输入 PC 的 IP 地址
 3. 点击连接，等待状态变为 "Connected"
-
-### 4. 验证数据
-
-```bash
-# 进入容器
-docker compose exec pico-bridge bash
-
-# 查看所有话题
-ros2 topic list
-
-# 查看头显数据
-ros2 topic echo /pico/hmd/pose
-
-# 查看左腕追踪器
-ros2 topic echo /pico/tracker/left_wrist
-
-# 查看话题频率
-ros2 topic hz /pico/tracker/left_wrist
-```
 
 ## 配置参数
 
@@ -319,6 +343,9 @@ pico-ros2-bridge/
 ├── docker-compose.yml         # Docker Compose 配置
 ├── README.md                  # 本文档
 ├── .gitignore
+├── .gitattributes             # 跨平台行尾配置
+├── apk/                       # PICO 客户端 APK
+│   └── XRoboToolkit-PICO-1.1.1.apk
 ├── scripts/
 │   └── entrypoint.sh          # 容器入口脚本
 ├── logs/                      # 运行日志
@@ -386,6 +413,62 @@ self.left_wrist_sub = self.create_subscription(
 
 1. 检查网络连接 (需要下载 GitHub 资源)
 2. 如果 deb 下载失败，手动下载后放入项目目录，修改 Dockerfile 使用 `COPY`
+
+## 阿里云容器镜像服务
+
+由于网络原因，Docker Hub 在国内经常无法访问。本项目已配置阿里云容器镜像服务（香港节点）。
+
+### 镜像仓库信息
+
+| 项目 | 值 |
+|------|-----|
+| Registry | `crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com` |
+| Namespace | `wuji-system` |
+| Repository | `pico-ros2-bridge` |
+| 完整地址 | `crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge` |
+| VPC 地址 | `crpi-ze0bxnrgukfjwz7h-vpc.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge` |
+
+### 推送镜像（开发者）
+
+```bash
+# 1. 登录阿里云镜像仓库
+docker login --username=盾剑任平生 crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com
+
+# 2. 标记镜像
+docker tag pico-ros2-bridge-pico-bridge:latest crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge:latest
+docker tag pico-ros2-bridge-pico-bridge:latest crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge:v1.0
+
+# 3. 推送镜像
+docker push crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge:latest
+docker push crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge:v1.0
+```
+
+### 拉取镜像（用户）
+
+```bash
+# 登录（私有仓库需要）
+docker login --username=盾剑任平生 crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com
+
+# 拉取最新版本
+docker pull crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge:latest
+
+# 拉取指定版本
+docker pull crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge:v1.0
+```
+
+### 使用阿里云镜像的 docker-compose.yml
+
+```yaml
+services:
+  pico-bridge:
+    image: crpi-ze0bxnrgukfjwz7h.cn-hongkong.personal.cr.aliyuncs.com/wuji-system/pico-ros2-bridge:latest
+    container_name: pico-ros2-bridge
+    network_mode: host
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    restart: unless-stopped
+```
 
 ## 参考资源
 

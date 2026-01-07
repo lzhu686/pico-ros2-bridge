@@ -22,3 +22,4 @@ Dockerfile text eol=lf
 *.gif binary
 *.ico binary
 *.pdf binary
+*.apk binary

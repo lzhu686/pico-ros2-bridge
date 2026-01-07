@@ -1,35 +1,41 @@
 services:
+  # ============================================================
+  # 默认服务 (Linux 推荐)
+  # 使用 host 网络模式，性能最佳，ROS2 DDS 通信无障碍
+  # 启动命令: docker compose up -d
+  # ============================================================
   pico-bridge:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: pico-ros2-bridge
 
-    # 使用 host 网络模式以便 ROS2 DDS 通信
+    # Linux 原生 host 网络模式 (最佳性能)
     network_mode: host
 
     # 环境变量
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-      # 时区
       - TZ=Asia/Shanghai
 
     # 挂载卷
     volumes:
-      # 源码挂载到临时位置 (开发模式，用于热更新)
       - ./ros2_ws/src/pico_bridge:/ros2_ws/src_host/pico_bridge:ro
-      # 日志目录
       - ./logs:/ros2_ws/logs
 
     # 重启策略
     restart: unless-stopped
 
-    # 默认命令 (从挂载目录复制并修复 Windows CRLF 行尾问题，再启动 ROS2)
+    # 默认命令 (启动 PC-Service + ROS2 节点)
     command: >
       bash -c "
         cp -r /ros2_ws/src_host/pico_bridge/* /ros2_ws/src/pico_bridge/ &&
         find /ros2_ws/src/pico_bridge /ros2_ws/install -type f \\( -name '*.py' -o -name '*.launch.py' \\) -exec sed -i 's/\\r$$//' {} \\; &&
+        echo '=== Starting XRoboToolkit PC-Service ===' &&
+        cd /opt/apps/roboticsservice && bash runService.sh &&
+        sleep 2 &&
+        echo '=== Starting ROS2 pico_bridge ===' &&
         source /ros2_ws/install/setup.bash &&
         ros2 launch pico_bridge pico_bridge.launch.py
       "
@@ -42,16 +48,58 @@ services:
       retries: 3
       start_period: 30s
 
-  # 模拟模式服务 (用于测试)
-  pico-bridge-sim:
+  # ============================================================
+  # Windows/Mac 用户使用此服务
+  # Docker Desktop 不支持真正的 host 网络，需要端口映射
+  # 启动命令: docker compose --profile windows up -d
+  # ============================================================
+  pico-bridge-windows:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pico-ros2-bridge-sim
-    network_mode: host
+    container_name: pico-ros2-bridge-win
+
+    # 端口映射 (Windows/Mac Docker Desktop 必需)
+    ports:
+      - "63901:63901"      # XRoboToolkit gRPC 服务端口
+      - "60061:60061"      # XRoboToolkit 内部通信
+      - "7400-7410:7400-7410/udp"  # ROS2 DDS 通信
+
+    # 环境变量
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-    command: ros2 launch pico_bridge pico_bridge.launch.py simulation_mode:=true
+      - TZ=Asia/Shanghai
+
+    # 挂载卷
+    volumes:
+      - ./ros2_ws/src/pico_bridge:/ros2_ws/src_host/pico_bridge:ro
+      - ./logs:/ros2_ws/logs
+
+    # 重启策略
+    restart: unless-stopped
+
+    # 默认命令 (启动 PC-Service + ROS2 节点)
+    command: >
+      bash -c "
+        cp -r /ros2_ws/src_host/pico_bridge/* /ros2_ws/src/pico_bridge/ &&
+        find /ros2_ws/src/pico_bridge /ros2_ws/install -type f \\( -name '*.py' -o -name '*.launch.py' \\) -exec sed -i 's/\\r$$//' {} \\; &&
+        echo '=== Starting XRoboToolkit PC-Service ===' &&
+        cd /opt/apps/roboticsservice && bash runService.sh &&
+        sleep 2 &&
+        echo '=== Starting ROS2 pico_bridge ===' &&
+        source /ros2_ws/install/setup.bash &&
+        ros2 launch pico_bridge pico_bridge.launch.py
+      "
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "ros2", "topic", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+    # 需要显式指定 profile 才启动
     profiles:
-      - simulation
+      - windows

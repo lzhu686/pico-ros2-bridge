@@ -278,7 +278,24 @@ docker compose exec pico-bridge bash -c "source /opt/ros/humble/setup.bash && ro
 docker compose exec pico-bridge bash -c "source /opt/ros/humble/setup.bash && ros2 topic hz /pico/tracker/left_wrist"
 ```
 
-### 3. PICO 端配置
+### 3. 查看连接 IP 地址
+
+PICO 头显需要输入运行 Docker 的电脑的局域网 IP 地址进行连接。
+
+**查询宿主机 IP:**
+```bash
+# Linux / Mac
+hostname -I
+# 或
+ifconfig
+
+# Windows
+ipconfig
+```
+
+选择与 PICO 头显在同一网段的 IP (通常是 `192.168.x.x` 或 `10.x.x.x`)，端口为 **63901**。
+
+### 4. PICO 端配置
 
 **前置条件:**
 - PICO 4 Ultra 头显

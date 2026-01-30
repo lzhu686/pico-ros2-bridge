@@ -306,18 +306,19 @@ ipconfig
 **安装 XRoboToolkit Client APK:**
 
 ```bash
-# 方式一：使用本仓库提供的 APK（推荐）
-adb install -g apk/XRoboToolkit-PICO-1.1.1.apk
+# 方式一：从 GitHub 下载最新版本（推荐）
+wget https://github.com/lzhu686/XRoboToolkit-Unity-Client/releases/download/v1.3.0/XRoboToolkit-v1.3.0-global.apk
+adb install -r -g XRoboToolkit-v1.3.0-global.apk
 
-# 方式二：从 GitHub 下载最新版本
-# https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases
+# 方式二：使用本仓库提供的 APK
+adb install -r -g apk/v1.3global.apk
 ```
 
 | 资源 | 说明 |
 |------|------|
-| 本仓库 APK | [apk/XRoboToolkit-PICO-1.1.1.apk](apk/) |
-| GitHub Releases | [XRoboToolkit-Unity-Client](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client/releases) |
-| Unity 源码 | [XRoboToolkit-Unity-Client](https://github.com/XR-Robotics/XRoboToolkit-Unity-Client) |
+| GitHub Release v1.3.0 | [lzhu686/XRoboToolkit-Unity-Client/releases/v1.3.0](https://github.com/lzhu686/XRoboToolkit-Unity-Client/releases/tag/v1.3.0) |
+| 本仓库 APK | [apk/v1.3global.apk](apk/) (全局坐标系) / [apk/v1.3local.apk](apk/) (本地坐标系) |
+| Unity 源码 | [lzhu686/XRoboToolkit-Unity-Client](https://github.com/lzhu686/XRoboToolkit-Unity-Client) |
 
 **连接步骤:**
 1. 确保 PICO 与 PC 在**同一局域网**

@@ -222,7 +222,7 @@ xrt.get_time_stamp_ns()                # 当前时间戳 (纳秒)
 
 ## 快速开始
 
-### 方式一：本地构建镜像（推荐）
+### 本地构建镜像（推荐）
 
 ```bash
 cd pico-ros2-bridge

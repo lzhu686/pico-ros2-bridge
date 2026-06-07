@@ -2,22 +2,14 @@
 
 包名: `com.xrobotoolkit.client`
 
-## 最新版本 v1.3.0
+## 最新版本 v1.4
 
-从 GitHub Releases 下载（推荐 local 本地坐标系 - 更稳定）:
+使用本仓库文件安装：
 ```bash
-# 本地坐标系版本（推荐 - 更稳定可靠）⭐
-wget https://github.com/lzhu686/XRoboToolkit-Unity-Client/releases/download/v1.3.0/XRoboToolkit-v1.3.0-local.apk
-adb install -r -g XRoboToolkit-v1.3.0-local.apk
+# 最新版本
+adb install -r -g v1.4.apk
 
-# 全局坐标系版本（仅多设备空间对齐场景）
-wget https://github.com/lzhu686/XRoboToolkit-Unity-Client/releases/download/v1.3.0/XRoboToolkit-v1.3.0-global.apk
-adb install -r -g XRoboToolkit-v1.3.0-global.apk
-```
-
-或使用本地文件:
-```bash
-# 推荐使用 local 版本
+# 如需回退旧版 local 坐标系版本
 adb install -r -g v1.3local.apk
 ```
 

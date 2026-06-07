@@ -4,7 +4,7 @@
 
 ## 项目说明
 
-该项目源于我在 Wuji 实习期间独立完成的 PICO XR 到 ROS2 数据桥接工作。相关内部集成记录保留在 Wuji 内部仓库中。为便于复现与学习，本仓库仅保留可公开的源码、构建方式和本地运行说明；内部集成、私有镜像分发和云端仓储方案不在本仓库公开。
+该项目是围绕 Wuji 远程操作/数据采集工作沉淀出的 PICO XR 到 ROS2 数据桥接子模块，用于把头显、手柄和 Motion Tracker 数据整理为标准 ROS2 话题。它更偏向一个可复用的小工具，记录了我在这部分工作中的实现思路、模块拆分和使用流程，方便后续与 `wuji-hand-teleop` 等开源仓库或其他 ROS2 系统集成。
 
 ## 项目定位
 
@@ -287,19 +287,17 @@ ipconfig
 **安装 XRoboToolkit Client APK:**
 
 ```bash
-# 方式一：从 GitHub 下载最新版本（推荐 local 本地坐标系 - 更稳定）
-wget https://github.com/lzhu686/XRoboToolkit-Unity-Client/releases/download/v1.3.0/XRoboToolkit-v1.3.0-local.apk
-adb install -r -g XRoboToolkit-v1.3.0-local.apk
+# 使用本仓库提供的最新 APK
+adb install -r -g apk/v1.4.apk
 
-# 方式二：使用本仓库提供的 APK
+# 如需回退旧版，可使用 v1.3 local 版本
 adb install -r -g apk/v1.3local.apk
 ```
 
 | 资源 | 说明 |
 |------|------|
-| GitHub Release v1.3.0 | [lzhu686/XRoboToolkit-Unity-Client/releases/v1.3.0](https://github.com/lzhu686/XRoboToolkit-Unity-Client/releases/tag/v1.3.0) |
-| 本仓库 APK | [apk/v1.3local.apk](apk/) (**本地坐标系 - 推荐**) / [apk/v1.3global.apk](apk/) (全局坐标系) |
-| Unity 源码 | [lzhu686/XRoboToolkit-Unity-Client](https://github.com/lzhu686/XRoboToolkit-Unity-Client) |
+| 本仓库 APK | [apk/v1.4.apk](apk/) (**最新版本**) / [apk/v1.3local.apk](apk/) (旧版 local 坐标系) |
+| Unity 源码参考 | [lzhu686/XRoboToolkit-Unity-Client](https://github.com/lzhu686/XRoboToolkit-Unity-Client) |
 
 **坐标系模式：推荐使用 Local（本地坐标系）更稳定可靠。Global 模式仅在需要多设备空间对齐时使用。**
 
@@ -346,7 +344,8 @@ pico-ros2-bridge/
 ├── .gitignore
 ├── .gitattributes             # 跨平台行尾配置
 ├── apk/                       # PICO 客户端 APK
-│   └── XRoboToolkit-PICO-1.1.1.apk
+│   ├── v1.4.apk                 # 最新 PICO 客户端 APK
+│   └── v1.3local.apk             # 旧版 local 坐标系 APK
 ├── scripts/
 │   └── entrypoint.sh          # 容器入口脚本
 ├── logs/                      # 运行日志

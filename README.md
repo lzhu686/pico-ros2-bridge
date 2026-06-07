@@ -2,6 +2,10 @@
 
 将 PICO XR 设备数据桥接到 ROS2 话题的独立 Docker 环境。
 
+## 项目说明
+
+该项目源于我在 Wuji 实习期间独立完成的 PICO XR 到 ROS2 数据桥接工作。为便于复现与学习，本仓库仅保留可公开的源码、构建方式和本地运行说明；内部集成、私有镜像分发和云端仓储方案不在本仓库公开。
+
 ## 项目定位
 
 这是一个**独立的 Docker 模块**，专注于：
@@ -405,6 +409,13 @@ self.left_wrist_sub = self.create_subscription(
 1. 检查 XRoboToolkit Client 是否显示 "Connected"
 2. 使用模拟模式测试 ROS2 话题是否正常
 3. 确认追踪器已在 PICO 系统中正确配对
+
+### Docker 构建失败
+
+1. 检查网络连接 (需要下载 GitHub 资源)
+2. 如果 deb 下载失败，手动下载后放入项目目录，修改 Dockerfile 使用 `COPY`
+
+## 参考资源
 
 ### XRoboToolkit 官方
 

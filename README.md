@@ -2,11 +2,19 @@
 
 将 PICO XR 设备数据桥接到 ROS2 话题的独立 Docker 环境。
 
+Key project and APK notes are provided in both Chinese and English.
+
 ## 项目说明
 
 该项目是我在 Wuji 远程操作/数据采集相关工作中独立完成的 PICO XR 调用与 ROS2 桥接子模块，用于把头显、手柄和 Motion Tracker 数据整理为标准 ROS2 话题。
 
-这个仓库更偏向一个可复用的小工具和使用说明：如果你想了解“如何从 PICO 获取数据，并把它接入 ROS2”，可以通过这里复现基础流程。公司开源的 `wuji-hand-teleop` 等仓库会提供更完整的 PICO 与机械臂/灵巧手集成能力；本仓库不包含公司内部的完整系统集成、控制策略、私有部署和镜像分发细节。
+这个仓库更偏向一个可复用的小工具和使用说明：如果你想了解“如何从 PICO 获取数据，并把它接入 ROS2”，可以通过这里复现基础流程。公司开源的 `wuji-hand-teleop` 等仓库会提供更完整的 PICO 与机械臂/灵巧手集成能力；本仓库与 `wuji-hand-teleop` 没有代码依赖关系，也不包含公司内部的完整系统集成、控制策略、私有部署和镜像分发细节。
+
+## Project Note
+
+This repository contains the PICO XR data access and ROS2 bridge submodule that I implemented independently during Wuji teleoperation/data-collection work. It converts PICO HMD, controller, and Motion Tracker data into standard ROS2 topics.
+
+The goal is to provide a reusable reference tool for people who want to understand how to get data from PICO devices and feed it into ROS2. More complete robot/hand teleoperation integrations are expected to live in company-maintained open-source repositories such as `wuji-hand-teleop`. This repository has no code dependency relationship with `wuji-hand-teleop`, and it does not include internal full-system integration, control policies, private deployment details, or private image distribution.
 
 ## 项目定位
 
@@ -16,6 +24,8 @@
 - 与其他 ROS2 系统 (如 Manus 手套、机械臂控制) 解耦
 
 **后期集成路线：** 本 Docker 测试通过后，可通过 ROS2 话题与手部遥操作、机械臂控制、运动重定向等模块解耦集成。
+
+In short, this module focuses on PICO-to-ROS2 data bridging. Downstream hand teleoperation, arm control, and retargeting modules can subscribe to the ROS2 topics exposed here.
 
 ## 支持设备
 
@@ -300,6 +310,12 @@ adb install -r -g apk/v1.3local.apk
 |------|------|
 | 本仓库 APK | [apk/v1.4.apk](apk/) (**最新版本**) / [apk/v1.3local.apk](apk/) (旧版 local 坐标系) |
 | Unity 源码参考 | [lzhu686/XRoboToolkit-Unity-Client](https://github.com/lzhu686/XRoboToolkit-Unity-Client) |
+
+**版本说明：** 这里的 `v1.4` 指本仓库中 APK 文件的迭代版本。当前 APK 的 Android Manifest 仍显示 `versionName=1.0.0`、`versionCode=1`，因此请优先以文件名和本文档说明区分版本。
+
+**视觉方案说明：** 本仓库提供的 APK 在官方 XRoboToolkit Client 的数据获取能力基础上，额外整理了一个面向低成本双目 RGB 立体视觉的参考配置。相较于常见的官方/高端双目方案（例如 ZED 等深度相机），这个方案尝试使用更便宜的 USB 双目 RGB 相机完成 VR 端立体视觉显示。当前 `v1.4.apk` 内置 `assets/video_source.yml`，配置了 USB 双目 RGB 相机示例（如 2560x720@60fps、ADB 约 23Mbps、WiFi 约 11Mbps）以及 16:9 双目画面的显示比例参数。这个方案仅供低成本遥操作视觉链路参考；如果你已经有官方推荐或更高端的 ZED 等深度/双目相机方案，也可以继续使用官方方案做数据获取。
+
+**APK notes (English):** `v1.4` is the repository file revision, while the Android Manifest still reports `versionName=1.0.0` and `versionCode=1`. The bundled APK keeps the official XRoboToolkit data-access workflow and adds a reference configuration for a lower-cost stereo RGB setup. Compared with common official/high-end stereo setups such as ZED depth cameras, this reference path targets a cheaper USB stereo RGB camera for VR-side stereo display. The included `assets/video_source.yml` contains a 2560x720@60fps camera example, ADB/WiFi bitrate presets, and 16:9 stereo rendering parameters. ZED or other official/high-end camera setups can still be used if available.
 
 **坐标系模式：推荐使用 Local（本地坐标系）更稳定可靠。Global 模式仅在需要多设备空间对齐时使用。**
 

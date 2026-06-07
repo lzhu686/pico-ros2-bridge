@@ -4,7 +4,9 @@
 
 ## 项目说明
 
-该项目是围绕 Wuji 远程操作/数据采集工作沉淀出的 PICO XR 到 ROS2 数据桥接子模块，用于把头显、手柄和 Motion Tracker 数据整理为标准 ROS2 话题。它更偏向一个可复用的小工具，记录了我在这部分工作中的实现思路、模块拆分和使用流程，方便后续与 `wuji-hand-teleop` 等开源仓库或其他 ROS2 系统集成。
+该项目是我在 Wuji 远程操作/数据采集相关工作中独立完成的 PICO XR 调用与 ROS2 桥接子模块，用于把头显、手柄和 Motion Tracker 数据整理为标准 ROS2 话题。
+
+这个仓库更偏向一个可复用的小工具和使用说明：如果你想了解“如何从 PICO 获取数据，并把它接入 ROS2”，可以通过这里复现基础流程。公司开源的 `wuji-hand-teleop` 等仓库会提供更完整的 PICO 与机械臂/灵巧手集成能力；本仓库不包含公司内部的完整系统集成、控制策略、私有部署和镜像分发细节。
 
 ## 项目定位
 
@@ -13,7 +15,7 @@
 - 发布为标准 ROS2 话题
 - 与其他 ROS2 系统 (如 Manus 手套、机械臂控制) 解耦
 
-**后期集成路线：** 本 Docker 测试通过后，可与 `wuji-system-docker` 等其他模块通过 ROS2 话题通信。
+**后期集成路线：** 本 Docker 测试通过后，可通过 ROS2 话题与手部遥操作、机械臂控制、运动重定向等模块解耦集成。
 
 ## 支持设备
 
@@ -92,8 +94,8 @@ Tracker #3 → 右上臂  → /pico/tracker/right_elbow → 提供右臂 Elbow H
 ┌────────────────────────────────────────────────────────────────┐
 │                    其他 ROS2 系统                               │
 │                                                                │
-│  • wuji-system-docker (Manus 手套 + 运动重定向)                │
-│  • tianji_arm_control (天机机械臂控制)                         │
+│  • wuji-hand-teleop / hand teleoperation modules               │
+│  • robot arm control / motion retargeting modules              │
 │  • ...                                                         │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -366,12 +368,12 @@ pico-ros2-bridge/
 
 ## 与其他系统集成
 
-### 与 wuji-system-docker 集成
+### 与其他 ROS2 系统集成
 
-测试本 Docker 通过后，可在 `wuji-system-docker` 中添加：
+测试本 Docker 通过后，可在其他 ROS2 系统的 Docker Compose 中添加：
 
 ```yaml
-# wuji-system-docker/docker-compose.yml
+# docker-compose.yml
 services:
   pico-bridge:
     build: ../pico-ros2-bridge
